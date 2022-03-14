@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstdint>
 #include <string>
+#include <chrono>
 
 #include "test.h"
 
@@ -11,6 +12,7 @@ private:
 
 	void regular_test(uint64_t max)
 	{
+		auto start = std::chrono::steady_clock::now();
 		uint64_t i;
 
 		// Test a single key
@@ -49,6 +51,8 @@ private:
 		phase();
 
 		report();
+		auto end = std::chrono::steady_clock::now();
+        std::cout << "Total: " << std::chrono::duration_cast <std::chrono::milliseconds> (end - start) .count() << "ms." << std::endl;
 	}
 
 public:

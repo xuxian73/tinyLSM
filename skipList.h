@@ -1,9 +1,9 @@
 #pragma once
 
-#include <stdio.h>
 #include <string>
 #include <vector>
 #include <random>
+#include <iostream>
 #include "common.h"
 
 class skipList {
@@ -49,6 +49,8 @@ public:
     bool get(uint64_t key, std::string* s);
 
     std::pair<bool, bool> del(uint64_t key);
+
+    std::vector<std::pair<uint64_t, std::string> > toSortedList() const;
 
     void clear();
 };

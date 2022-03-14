@@ -2,5 +2,6 @@
 
 #define HEADER_SIZE (32)
 #define FILTER_SIZE (10240)
-#define MEMTABLE_SIZE ((1 << 21) - HEADER_SIZE - FILTER_SIZE)
+#define TABLE_SIZE ((uint32_t)(1 << 21) - HEADER_SIZE - FILTER_SIZE)
 #define TOMBSTONE "~DELETED~"
+#define TABLELEVEL (4)

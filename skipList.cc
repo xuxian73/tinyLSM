@@ -30,19 +30,18 @@ std::pair<bool, bool> skipList::putOrDel(uint64_t key, const std::string &s) {
         cur = cur->right;
         ret.second = cur->value != TOMBSTONE;
         size_t size = _size + s.length() * sizeof(char) - cur->value.length() * sizeof(char);
-        if (size > MEMTABLE_SIZE) {
+        if (size > TABLE_SIZE) {
             ret.first = false;
             return ret;
         }
         _size = size;
-        cur->key = key;
         cur->value = s;
         ret.first = true;
         return ret;
     } else {
         ret.second = false;
         size_t size = _size + s.length() * sizeof(char) + sizeof(uint64_t) + sizeof(uint32_t);
-        if (size > MEMTABLE_SIZE) {
+        if (size > TABLE_SIZE) {
             ret.first = false;
             return ret;
         }
@@ -54,6 +53,7 @@ std::pair<bool, bool> skipList::putOrDel(uint64_t key, const std::string &s) {
             p->right = new skipListNode(p->right, child, key, s);
             leftNeighbor.pop_back();
             child = p->right;
+            level -= 1;
         }
         if (level > 0) {
             _head = new skipListNode(new skipListNode(nullptr, child, key, s), _head, 0, "");
@@ -97,4 +97,22 @@ void skipList::clear() {
     }
     _head = new skipListNode();
     _size = 0;
+}
+
+std::vector<std::pair<uint64_t, std::string> > skipList::toSortedList() const{
+    skipListNode *cur = _head;
+    std::vector<std::pair<uint64_t, std::string> > ret = std::vector<std::pair<uint64_t, std::string> >();
+    if (!cur) {
+        std::cerr << "Warn: Build list on empty memTable." << std::endl;
+    }
+    while (cur->down) {
+        cur = cur->down;
+    }
+    cur = cur->right;
+
+    while (cur) {
+        ret.push_back(std::pair<uint64_t, std::string>(cur->key, cur->value));
+        cur = cur->right;
+    }
+    return ret;
 }
