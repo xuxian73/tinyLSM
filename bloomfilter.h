@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <string>
+#include <cstring>
 #include <fstream>
 #include "MurmurHash3.h"
 #include "common.h"

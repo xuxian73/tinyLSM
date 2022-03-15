@@ -3,7 +3,7 @@
 ssTableLevel::ssTableLevel(uint32_t level, const std::string &dir):_dir(dir), _level(level), _time(0), _fileno(0) {
     std::vector<std::string> files;
     if (!utils::dirExists(_dir)) {
-        std::cerr << "ssTableLevel dir " << " do no exist." << std::endl;
+        utils::mkdir(_dir.c_str());
     }
     utils::scanDir(_dir, files);
     for (auto &file : files) {
@@ -15,7 +15,7 @@ ssTableLevel::ssTableLevel(uint32_t level, const std::string &dir):_dir(dir), _l
         if (_level == 0) {
             auto iter = _data.begin();
             for (; iter != _data.end(); ++iter) {
-                if ((*iter)->getTimeStamp() > unit->getTimeStamp()) {
+                if ((*iter)->getTimeStamp() < unit->getTimeStamp()) {
                     break;
                 }
             }
@@ -35,7 +35,7 @@ ssTableLevel::ssTableLevel(uint32_t level, const std::string &dir):_dir(dir), _l
 }
 
 void ssTableLevel::compaction(std::vector<ssTableUnit*> old, ssTableUnit* now) {
-    std::vector<ssTableLevel::kvItem> itemList;
+    std::vector<ssTableLevel::kvItem> itemList = std::vector<ssTableLevel::kvItem>();
     for (auto iter = old.cbegin(); iter != old.cend(); ++iter) {
         ssTableUnit* unit = *iter;
         for (uint32_t i = 0; i < unit->getNum(); ++i) {
@@ -53,12 +53,14 @@ void ssTableLevel::compaction(std::vector<ssTableUnit*> old, ssTableUnit* now) {
             ++newIter;
             ++oldIter;
         } else {
-            oldIter = itemList.insert(oldIter, kvItem(cur.first, cur.second, now));
+            oldIter = itemList.insert(oldIter, kvItem(cur.first, newIter, now));
             ++oldIter;
+            ++newIter;
         }
     }
     while (newIter < now->getNum()) {
         itemList.push_back(kvItem(now->_index[newIter].first, newIter, now));
+        ++newIter;
     }
 
     std::vector<ssTableUnit*> allUnit = std::move(old);
@@ -82,49 +84,52 @@ void ssTableLevel::compaction(std::vector<ssTableUnit*> old, ssTableUnit* now) {
         unitStream[item.unit].seekg(offset, std::ios_base::beg);
         unitStream[item.unit].read(tmp, valueSize);
         if (size + valueSize + sizeof(uint64_t) + sizeof(uint32_t) > TABLE_SIZE) {
-            newUnits.push_back(new ssTableUnit(_dir + "/" + std::to_string(_fileno++), _time++, kvList));
+            newUnits.push_back(new ssTableUnit(_dir + "/" + std::to_string(_fileno++) + FILESUFFIX, _time++, kvList));
             kvList.clear();
             size = 0;
         }
         size += valueSize + sizeof(uint64_t) + sizeof(uint32_t);
         kvList.push_back(std::pair<uint64_t, std::string>(item.key, std::string(tmp, valueSize)));            
     }
+    if (!kvList.empty()) {
+        newUnits.push_back(new ssTableUnit(_dir + "/" + std::to_string(_fileno++) + FILESUFFIX, _time++, kvList));
+    }
     for (auto &unit : allUnit) {
         unitStream[unit].close();
         unit->cleanFile();
         delete unit;
     }
+    if (_data.empty()) {
+        _data.insert(_data.end(), newUnits.cbegin(), newUnits.cend());
+        return;
+    }
     uint64_t minkey = newUnits.front()->getMin();
     for (auto iter = _data.begin(); iter != _data.end(); ++iter) {
         if ((*iter)->getMax() < minkey) {
             _data.insert(iter, newUnits.cbegin(), newUnits.cend());
+            return;
         }
     }
 }
 
 bool ssTableLevel::insert(ssTableUnit *unit) {
-    ssTableUnit* cur;
     std::vector<ssTableUnit*> targetUnits;
-    
-    if (_level == 0 || _data.size() == 0) {
-        _data.insert(_data.begin(), unit);
-    } else {
-        for (auto iter = _data.begin(); iter != _data.end();) {
-            cur = *iter;
-            if (cur->getMax() >= unit->getMin() && cur->getMin() <= unit->getMax()) {
-                targetUnits.push_back(*iter);
-                iter = _data.erase(iter);
-            } else {
-                ++iter;
-            }
+
+    for (auto iter = _data.begin(); iter != _data.end();) {
+        ssTableUnit* cur = *iter;
+        if (cur->getMax() >= unit->getMin() && cur->getMin() <= unit->getMax()) {
+            targetUnits.push_back(*iter);
+            iter = _data.erase(iter);
+        } else {
+            ++iter;
         }
-        compaction(targetUnits, unit);
     }
+    compaction(targetUnits, unit);
     return (_data.size() > (2 << _level));
 }
 
 bool ssTableLevel::insert(const std::vector<std::pair<uint64_t, std::string> >& kvList) {
-    std::string path = _dir + "/" + std::to_string(_fileno);
+    std::string path = _dir + "/" + std::to_string(_fileno) + FILESUFFIX;
     ssTableUnit* unit = new ssTableUnit(path, _time, kvList);
     ++_fileno;
     ++_time;

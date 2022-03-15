@@ -22,7 +22,7 @@ bool bloomfilter::isFiltered(uint64_t key) const {
     MurmurHash3_x64_128(&key, sizeof(key), 1, hash);
     for (int i = 0; i < 4; ++i) {
         uint32_t bit = hash[i] % (FILTER_SIZE << 3);
-        if (((char*)_filter)[bit >> 3] & (1 << (bit % 8))) {
+        if (!(((char*)_filter)[bit >> 3] & (1 << (bit % 8)))) {
             return true;
         }
     }
@@ -34,7 +34,7 @@ void bloomfilter::addKey(uint64_t key) {
     MurmurHash3_x64_128(&key, sizeof(key), 1, hash);
     for (int i = 0; i < 4; ++i) {
         uint32_t bit = hash[i] % (FILTER_SIZE << 3);
-        ((char*)_filter)[bit >> 3] &= 1 << (bit % 8);
+        ((char*)_filter)[bit >> 3] |= 1 << (bit % 8);
     }
 }
 
@@ -58,12 +58,11 @@ void bloomfilter::readFilter(const std::string& path) {
 
 void bloomfilter::writeFilter(const std::string& path) {
     std::ofstream out;
-    out.open(path, std::ios_base::out | std::ios_base::binary);
+    out.open(path, std::ios_base::out | std::ios_base::binary | std::ios_base::app);
     if (!out.is_open()) {
         std::cerr << "Fatal: failed to open file " << path << std::endl; 
         exit(1);
     }
-
     out.seekp(HEADER_SIZE, std::ios_base::beg);
     out.write((char*)_filter, FILTER_SIZE);
 

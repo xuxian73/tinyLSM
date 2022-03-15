@@ -20,7 +20,7 @@ ssTableUnit::ssTableUnit(std::string path, uint64_t timestamp, const std::vector
         std::cerr << "Fatal: Failed to create ssTableUnit file " << std::endl;
     }
 
-    for (auto iter = _index.cbegin(); iter != _index.cend(); ++iter) {
+    for (auto iter = _index.cbegin(); iter != _index.cend() - 1; ++iter) {
         out.write((char*)&iter->first, sizeof(uint64_t));
         out.write((char*)&iter->second, sizeof(uint32_t));
     }
@@ -47,12 +47,13 @@ ssTableUnit::ssTableUnit(const std::string& path) {
     in.seekg(HEADER_SIZE + FILTER_SIZE, std::ios_base::beg);
     for (uint64_t i = 0; i < _header.num; ++i) {
         std::pair<uint64_t, uint32_t> keyOffset;
-        in.read((char*)&keyOffset.first, sizeof(uint64_t));
-        in.read((char*)&keyOffset.second, sizeof(uint32_t));
+        in.read((char*)&(keyOffset.first), sizeof(uint64_t));
+        in.read((char*)&(keyOffset.second), sizeof(uint32_t));
         _index.push_back(keyOffset);
     }
     in.seekg(0, std::ios_base::end);
     _index.push_back(std::pair<uint64_t, uint32_t>(0, in.tellg()));
+    in.close();
 }
 
 std::pair<bool, std::string> ssTableUnit::get(uint64_t key) const {
@@ -77,10 +78,14 @@ std::pair<bool, std::string> ssTableUnit::get(uint64_t key) const {
                 exit(1);
             }
             size_t size = _index[m + 1].second - _index[m].second;
-            char* value = new char [size];
+            char* tmp = new char [size];
             in.seekg(offset, std::ios_base::beg);
-            in.read(value, size);
-            return std::pair<bool, std::string>(true, std::string(value, size));
+            in.read(tmp, size);
+            if (!in.good()) {
+                std::cerr << "Fatal: Failed to load ssTableUnit" << std::endl;
+            }
+            in.close();
+            return std::pair<bool, std::string>(true, std::string(tmp, size));
         }
     }
     return std::pair<bool, std::string>(false, std::string());
@@ -100,13 +105,13 @@ std::vector<std::pair<uint64_t, std::string> > ssTableUnit::toSortedList() {
     uint64_t offset = HEADER_SIZE + FILTER_SIZE + _header.num * (sizeof(uint64_t) + sizeof(uint32_t));
     in.seekg(offset, std::ios_base::beg);
     for (auto iter = _index.begin(); iter < _index.end() - 1; ++iter) { 
-        size_t size = (*iter).second - (*iter).second; 
+        size_t size = (*(iter + 1)).second - (*iter).second; 
         char str[size];
         in.read(str, size);
-        std::string value(str, size);
-        ret.push_back(std::pair<uint64_t, std::string>((*iter).first, value));
+        std::string tmp(str, size);
+        ret.push_back(std::pair<uint64_t, std::string>((*iter).first, tmp));
     }
-    if (in.good()) {
+    if (!in.good()) {
         std::cerr << "Fatal: failed to read ssTable " << _path << std::endl;
     }
     in.close();

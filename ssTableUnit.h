@@ -40,9 +40,9 @@ public:
      */
     void cleanFile();
 
-    uint64_t getMin() { return _header.min; }
+    int64_t getMin() { return _header.min; }
 
-    uint64_t getMax() { return _header.max; }
+    int64_t getMax() { return _header.max; }
 
     uint64_t getNum() { return _header.num; }
 

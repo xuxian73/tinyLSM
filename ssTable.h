@@ -24,7 +24,5 @@ public:
 
     void insert(const skipList& memtable);
 
-    void makeTableUnit();
-
     void clear();
 };
