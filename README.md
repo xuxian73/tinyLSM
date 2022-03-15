@@ -30,6 +30,8 @@ A trivial implementation of LSM tree.
 ├── ssTableLevel.h
 ├── ssTable.cc // ssTable, grouped by different layer of ssTableLevel
 ├── ssTable.h
+├── TableUnitTest.cc // UnitTest for ssTableUnit
+├── TableLevelTest.cc // UnitTest for ssTableLevel
 ├── kvstore_api.h  // KVStoreAPI, you should not modify this file
 ├── persistence.cc // Persistence test, you should not modify this file
 ├── utils.h         // Provides some cross-platform file/directory interface
